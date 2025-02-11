@@ -108,8 +108,8 @@ def consume_messages_from_kafka(
     try:
         verify_services()
     except Exception as e:
-        logger.error(f"ERROR: Kafka services verification failed: {e}")
-        sys.exit(11)
+       logger.error(f"ERROR: Kafka services verification failed: {e}")
+       sys.exit(11)
 
     logger.info("Step 2. Create a Kafka consumer.")
     try:
