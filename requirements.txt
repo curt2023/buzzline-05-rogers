@@ -97,6 +97,9 @@ kafka-python-ng
 
 #MongoDB package
 pymongo
+tabulate
+matplotlib
+
 
 # ======================================================
 # DATABASE INTEGRATION 

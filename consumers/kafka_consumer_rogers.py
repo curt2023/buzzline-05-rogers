@@ -1,5 +1,5 @@
 """
-kafka_consumer_case.py
+kafka_consumer_rogers.py
 
 Consume json messages from a live data file. 
 Insert the processed messages into a database.
@@ -22,7 +22,14 @@ Environment variables are in utils/utils_config module.
 #####################################
 # Import Modules
 #####################################
-
+import json
+import pathlib
+import sys
+import time
+from tabulate import tabulate
+import logging
+import matplotlib.pyplot as plt
+from collections import Counter
 # import from standard library
 import json
 import os
@@ -38,53 +45,40 @@ from utils.utils_consumer import create_kafka_consumer
 from utils.utils_logger import logger
 from utils.utils_producer import verify_services, is_topic_available
 
-from pymongo import MongoClient,errors
-
-
 # Ensure the parent directory is in sys.path
 #sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-#from consumers.db_sqlite_case import init_db, insert_message
+from consumers.mongo_db import init_db, insert_message
 
-mongo_uri = 'mongodb:localhost:27107/'
-mongo_db_name = 'mongo_buzz_database'
-mongo_collection_name = 'mongo_buzz collection'
-
-def init_db(mongodb_uri):
-    """Initializes the MongoDB connection."""
-    try:
-        client = MongoClient(mongodb_uri)
-        db = client["product_launch_mongodb"]  # Replace with your database name
-        collection = db["messages"]  # Replace with your collection name
-        return collection
-    except errors.ConnectionFailure as e:
-        logger.error(f"Could not connect to MongoDB: {e}")
-        sys.exit(1)
-
-def insert_message(message, collection):
-    """Inserts a message into the MongoDB collection."""
-    try:
-        collection.insert_one(message)
-        logger.info(f"Inserted message: {message}")
-    except errors.PyMongoError as e:
-        logger.error(f"Error inserting message: {e}")
 #####################################
 # Function to process a single message
 # #####################################
 
 
-def process_message(message: str) -> None:
+def process_message(message: dict) -> None:
     """
-    Process a single message.
-
-    For now, this function simply logs the message.
-    You can extend it to perform other tasks, like counting words
-    or storing data in a database.
+    Process and transform a single JSON message.
+    Converts message fields to appropriate data types.
 
     Args:
-        message (str): The message to process.
+        message (dict): The JSON message as a Python dictionary.
     """
-    logger.info(f"Processing message: {message}")
-
+    logger.info("Called process_message() with:")
+    logger.info(f"   {message=}")
+    try:
+        processed_message = {
+            "message": message.get("message"),
+            "author": message.get("author"),
+            "timestamp": message.get("timestamp"),
+            "category": message.get("category"),
+            "sentiment": float(message.get("sentiment", 0.0)),
+            "keyword_mentioned": message.get("keyword_mentioned"),
+            "message_length": int(message.get("message_length", 0)),
+        }
+        logger.info(f"Processed message: {processed_message}")
+        return processed_message
+    except Exception as e:
+        logger.error(f"Error processing message: {e}")
+        return None
 
 
 #####################################
@@ -96,7 +90,7 @@ def consume_messages_from_kafka(
     topic: str,
     kafka_url: str,
     group: str,
-    mongodb_uri: str,
+    mongodb_uri,
     interval_secs: int,
 ):
     """
@@ -117,10 +111,7 @@ def consume_messages_from_kafka(
     logger.info(f"   {mongodb_uri=}")
     logger.info(f"   {interval_secs=}")
 
-  
-    collection = init_db(mongodb_uri)
     logger.info("Step 1. Verify Kafka Services.")
-    
     try:
         verify_services()
     except Exception as e:
@@ -160,9 +151,9 @@ def consume_messages_from_kafka(
         # message is a kafka.consumer.fetcher.ConsumerRecord
         # message.value is a Python dictionary
         for message in consumer:
-            processed_message = (message.value)
-            collection.insert_one(processed_message)
-            logger.info(f"inserted message{processed_message}")
+            processed_message = process_message(message.value)
+            if processed_message:
+                insert_message(processed_message, mongodb_uri)
 
     except Exception as e:
         logger.error(f"ERROR: Could not consume messages from Kafka: {e}")
@@ -190,10 +181,7 @@ def main():
         kafka_url = config.get_kafka_broker_address()
         group_id = config.get_kafka_consumer_group_id()
         interval_secs: int = config.get_message_interval_seconds_as_int()
-        mongodb_uri: str = config.get_mongodb_uri()
-        mongodb_db: str = config.get_mongodb_db ()
-        mongodb_collection: str = config.get_mongodb_collection()
-
+        mongodb_uri= config.get_mongodb_uri()
         logger.info("SUCCESS: Read environment variables.")
     except Exception as e:
         logger.error(f"ERROR: Failed to read environment variables: {e}")
@@ -201,14 +189,11 @@ def main():
 
 
 
-    logger.info("STEP 3. Initialize a new database with an empty table.")
-    
-
 
     logger.info("STEP 4. Begin consuming and storing messages.")
     try:
         consume_messages_from_kafka(
-            topic, kafka_url, group_id, mongodb_collection, interval_secs
+            topic, kafka_url, group_id, mongodb_uri, interval_secs
         )
     except KeyboardInterrupt:
         logger.warning("Consumer interrupted by user.")

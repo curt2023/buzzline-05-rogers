@@ -1,7 +1,4 @@
 # buzzline-05-rogers
-
-Nearly every streaming analytics system stores processed data somewhere for further analysis, historical reference, or integration with BI tools.
-
 In this example project, we incorporate a relational data store. 
 We use SQLite, but the example could be altered to work with MySQL, PostgreSQL, or MongoDB.
 
