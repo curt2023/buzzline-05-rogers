@@ -1,5 +1,5 @@
 """
-kafka_consumer_rogers.py
+kafka_consumer_case.py
 
 Consume json messages from a live data file. 
 Insert the processed messages into a database.
@@ -22,14 +22,7 @@ Environment variables are in utils/utils_config module.
 #####################################
 # Import Modules
 #####################################
-import json
-import pathlib
-import sys
-import time
-from tabulate import tabulate
-import logging
-import matplotlib.pyplot as plt
-from collections import Counter
+
 # import from standard library
 import json
 import os
@@ -46,8 +39,8 @@ from utils.utils_logger import logger
 from utils.utils_producer import verify_services, is_topic_available
 
 # Ensure the parent directory is in sys.path
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from consumers.mongo_db import init_db, insert_message
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from consumers.db_sqlite_rogers import init_db, insert_message
 
 #####################################
 # Function to process a single message
@@ -90,7 +83,7 @@ def consume_messages_from_kafka(
     topic: str,
     kafka_url: str,
     group: str,
-    mongodb_uri,
+    sql_path: pathlib.Path,
     interval_secs: int,
 ):
     """
@@ -108,7 +101,7 @@ def consume_messages_from_kafka(
     logger.info(f"   {topic=}")
     logger.info(f"   {kafka_url=}")
     logger.info(f"   {group=}")
-    logger.info(f"   {mongodb_uri=}")
+    logger.info(f"   {sql_path=}")
     logger.info(f"   {interval_secs=}")
 
     logger.info("Step 1. Verify Kafka Services.")
@@ -153,7 +146,7 @@ def consume_messages_from_kafka(
         for message in consumer:
             processed_message = process_message(message.value)
             if processed_message:
-                insert_message(processed_message, mongodb_uri)
+                insert_message(processed_message, sql_path)
 
     except Exception as e:
         logger.error(f"ERROR: Could not consume messages from Kafka: {e}")
@@ -181,19 +174,32 @@ def main():
         kafka_url = config.get_kafka_broker_address()
         group_id = config.get_kafka_consumer_group_id()
         interval_secs: int = config.get_message_interval_seconds_as_int()
-        mongodb_uri= config.get_mongodb_uri()
+        sqlite_path: pathlib.Path = config.get_sqlite_path()
         logger.info("SUCCESS: Read environment variables.")
     except Exception as e:
         logger.error(f"ERROR: Failed to read environment variables: {e}")
         sys.exit(1)
 
+    logger.info("STEP 2. Delete any prior database file for a fresh start.")
+    if sqlite_path.exists():
+        try:
+            sqlite_path.unlink()
+            logger.info("SUCCESS: Deleted database file.")
+        except Exception as e:
+            logger.error(f"ERROR: Failed to delete DB file: {e}")
+            sys.exit(2)
 
-
+    logger.info("STEP 3. Initialize a new database with an empty table.")
+    try:
+        init_db(sqlite_path)
+    except Exception as e:
+        logger.error(f"ERROR: Failed to create db table: {e}")
+        sys.exit(3)
 
     logger.info("STEP 4. Begin consuming and storing messages.")
     try:
         consume_messages_from_kafka(
-            topic, kafka_url, group_id, mongodb_uri, interval_secs
+            topic, kafka_url, group_id, sqlite_path, interval_secs
         )
     except KeyboardInterrupt:
         logger.warning("Consumer interrupted by user.")
