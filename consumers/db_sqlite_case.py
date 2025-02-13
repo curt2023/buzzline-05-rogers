@@ -99,7 +99,7 @@ def insert_message(message: dict, db_path: pathlib.Path) -> None:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO streamed_messages (
+                INSERT INTO streamed_messages(
                     message, author, timestamp, category, sentiment, keyword_mentioned, message_length
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,

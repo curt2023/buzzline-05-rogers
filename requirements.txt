@@ -95,6 +95,9 @@ python-dotenv
 six
 kafka-python-ng
 
+#MongoDB package
+pymongo
+
 # ======================================================
 # DATABASE INTEGRATION 
 # ======================================================
