@@ -28,6 +28,11 @@ import json
 import os
 import pathlib
 import sys
+import sqlite3
+import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
+
+
 
 # import external modules
 from kafka import KafkaConsumer
@@ -41,6 +46,50 @@ from utils.utils_producer import verify_services, is_topic_available
 # Ensure the parent directory is in sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from consumers.db_sqlite_rogers import init_db, insert_message
+
+
+
+fig, ax = plt.subplots()
+fig.patch.set_facecolor('slategrey')
+plt.ion()
+DB_PATH = config.get_sqlite_path()
+
+def fetch_data():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT category, avg_sentiment FROM sentiment_per_category")
+            visual_data1 = cursor.fetchall()
+        return visual_data1
+    except Exception as e:
+        logger.error(f"Error Fetching data: {e}")
+
+  
+def update_chart():
+    visual_data1 = fetch_data() 
+ 
+    ax.clear() #clear previous chart
+
+    
+
+    category, avg_sentiment = zip(*visual_data1)
+
+
+    ax.bar(category, avg_sentiment, color="lawngreen", edgecolor ='orange')
+    ax.set_title("Average Sentiment per Category")
+    ax.set_ylabel("avg_sentiment")
+    ax.set_xlabel("category")
+    ax.set_facecolor("lightsteelblue")
+    ax.set_ylim(0,1)
+
+    plt.tight_layout()
+    plt.draw()
+    plt.pause(1)
+
+   
+
+ 
 
 #####################################
 # Function to process a single message
@@ -176,6 +225,12 @@ def main():
         interval_secs: int = config.get_message_interval_seconds_as_int()
         sqlite_path: pathlib.Path = config.get_sqlite_path()
         logger.info("SUCCESS: Read environment variables.")
+
+        init_db(DB_PATH)
+
+        update_chart()
+
+
     except Exception as e:
         logger.error(f"ERROR: Failed to read environment variables: {e}")
         sys.exit(1)
@@ -189,6 +244,7 @@ def main():
             logger.error(f"ERROR: Failed to delete DB file: {e}")
             sys.exit(2)
 
+
     logger.info("STEP 3. Initialize a new database with an empty table.")
     try:
         init_db(sqlite_path)
@@ -201,17 +257,23 @@ def main():
         consume_messages_from_kafka(
             topic, kafka_url, group_id, sqlite_path, interval_secs
         )
+
+
     except KeyboardInterrupt:
         logger.warning("Consumer interrupted by user.")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
     finally:
         logger.info("Consumer shutting down.")
+    
 
 
 #####################################
 # Conditional Execution
 #####################################
+
+
+
 
 if __name__ == "__main__":
     main()
