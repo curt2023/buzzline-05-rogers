@@ -1,5 +1,5 @@
 """
-kafka_consumer_case.py
+kafka_consumer_rogers.py
 
 Consume json messages from a live data file. 
 Insert the processed messages into a database.
