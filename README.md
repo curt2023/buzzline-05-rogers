@@ -38,6 +38,16 @@ This will take two more terminals:
 1. One to run the producer which writes messages. 
 2. Another to run the consumer which reads messages, processes them, and writes them to a data store. 
 
+### Custom Consumer
+
+The goal of my custom consumer is to use Kafka to take the data presented in the producer_case.py file and process it into an SQLite database. 
+
+This data will be stored as streamed messages table, and a sentiment_per_category table. 
+
+The sentiment_per_category table will be used to feed a visual that will display the average sentiment for each category.
+
+Follow the steps below to execute the code and see if it works.
+
 ### Producer (Terminal 3) 
 
 Start the producer to generate the messages. 
@@ -63,7 +73,7 @@ python3 -m producers.producer_case
 
 The producer will still work if Kafka is not available.
 
-### Consumer (Terminal 4) - Two Options
+### Consumer (Terminal 4) 
 
 Start an associated consumer. 
 You have two options. 
@@ -93,7 +103,9 @@ python3 -m consumers.file_consumer_case
 
 ## Summary
 
-This project was a fun an challenging project to work on. My main goal was to use the Kafka streaming data to create a visual showing the average sentiment per category. I was able to accomplish this. During execution of this project I also worked towards storing the data in a Mongo DB database. I was also able to complete this task but it was significantly harder with the streaming data. I am not exactly sure why. It will take more practice.
+This project was a fun an challenging project to work on. My main goal was to use the Kafka streaming data to create a visual showing the average sentiment per category. 
+I was able to accomplish this. During execution of this project I also worked towards storing the data in a Mongo DB database. 
+I was also able to complete this task but it was significantly harder with the streaming data. I am not exactly sure why. It will take more practice.
 
 All in all i enjoyed this project!!
  
